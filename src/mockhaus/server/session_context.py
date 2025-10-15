@@ -21,6 +21,7 @@ class SessionContext:
         self.storage_backend = storage_backend
         self.lock = asyncio.Lock()  # For thread safety
         self._executor: MockhausExecutor | None = None
+        self._statement_manager: Any | None = None # Use Any to avoid circular import for now
         self._is_active = True
         self._db_path: str | None = None
 
@@ -55,6 +56,16 @@ class SessionContext:
                 logger.info(f"Session {self.session_id}: Connected to persistent database at {self._db_path}")
 
         return self._executor
+
+    async def get_statement_manager(self) -> Any:
+        """
+        Get or create the StatementManager for this session.
+        """
+        if self._statement_manager is None:
+            # Import StatementManager here to avoid circular dependency
+            from mockhaus.server.snowflake_api.statement_manager import StatementManager
+            self._statement_manager = StatementManager(self)
+        return self._statement_manager
 
     async def execute_sql(self, sql: str) -> dict[str, Any]:
         """Execute SQL in this session's context with thread safety."""
